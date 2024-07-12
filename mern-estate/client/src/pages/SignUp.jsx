@@ -49,7 +49,7 @@ export default function SignUp() {
 
   return (
     <div className="p-3 max-w-lg mx-auto">
-      <h1 className="text-3xl text-center font-semibold my-7">Novo Usuário</h1>
+      <h1 className="text-3xl text-center font-semibold my-7">Cadastrar Novo Usuário</h1>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
         <input
