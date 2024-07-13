@@ -1,35 +1,26 @@
 import dotenv from "dotenv"
 import express from "express"
-import mongoose from "mongoose"
+import cookieParser from "cookie-parser"
 
 import userRouter from "./routes/user.route.js"
 import authRouter from "./routes/auth.route.js"
 
-dotenv.config()
+import dbConnect from "./utils/dbConnect.js"
 
+dotenv.config()
 const PORT = process.env.PORT
 const DB_USERNAME=process.env.DB_USERNAME
 const DB_PASSWORD=process.env.DB_PASSWORD
 const DB_URL=process.env.DB_URL
 const DB_APPNAME=process.env.DB_APPNAME
 
-mongoose.connect(`mongodb+srv://${DB_USERNAME}:${DB_PASSWORD}@${DB_URL}/?retryWrites=true&w=majority&appName=${DB_APPNAME}`).then(() => {
-  console.log(`Connected to MongoDB/${DB_APPNAME}...`)
-}).catch((e) => {
-  console.log(e)
-})
-
 const app = express()
 
-app.listen(PORT, () =>{
-  console.log(`Server running on port: ${PORT}`)
-})
-
+// Middleware
 app.use(express.json())
+app.use(cookieParser())
 
-app.use("/api/user", userRouter)
-app.use("/api/auth", authRouter)
-
+// Errors handler
 app.use((err, req, res, next) => {
   const statusCode = err.statusCode || 500
   const message =  err.message || "Internal Server Error!"
@@ -38,4 +29,14 @@ app.use((err, req, res, next) => {
     statusCode,
     message
   })
+})
+
+// Routes
+app.use("/api/user", userRouter)
+app.use("/api/auth", authRouter)
+
+// Start Server Services
+app.listen(PORT, () =>{
+  console.log(`Server running on port: ${PORT}`)
+  dbConnect( DB_USERNAME, DB_PASSWORD, DB_URL, DB_APPNAME )
 })
