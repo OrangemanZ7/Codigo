@@ -1,17 +1,53 @@
 /* eslint-disable no-unused-vars */
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { useSelector } from "react-redux"
+
+import { app } from "../firebase"
+import { getDownloadURL, getStorage, ref, uploadBytesResumable } from "firebase/storage"
+
 import OAuth from "../components/OAuth"
 
 export default function Profile() {
+  const fileRef = useRef(null)
   const { currentUser } = useSelector((state) => state.user)
-  const navigate = useNavigate()
-
+  const [ file, setFile ] = useState(undefined)
+  const [ fileUploadPerc, setFileUploadPerc ] = useState(0)
+  const [ fileUploadError, setFileUploadError ] = useState(false)
   const [formData, setFormData] = useState({})
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
+  const navigate = useNavigate()
+  
+  useEffect(() => {
+    if(file) {      
+      handleFileUpload(file)
+    }
+  }, [file])
 
+  const handleFileUpload = (file) => {
+    setFileUploadError(false)    
+    const storage = getStorage(app)
+    const fileName = new Date().getTime() + file.name
+    const storageRef = ref(storage, fileName)
+    const uploadTask = uploadBytesResumable(storageRef, file)
+
+    uploadTask.on("state_changed",
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+        setFileUploadPerc(Math.round(progress))        
+      },
+      (error) => {        
+        setFileUploadError(true)
+      },
+      () => {
+        getDownloadURL(uploadTask.snapshot.ref)
+          .then((downloadURL) => {
+            setFormData({ ...formData, avatar: downloadURL})            
+        })
+    })
+  }
+  
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -32,8 +68,7 @@ export default function Profile() {
           },
           body: JSON.stringify(formData)
         })
-      const data = await res.json()
-      console.log(data)
+      const data = await res.json()      
       if (data.success === false) {
         setLoading(false)
         setError(data.message)
@@ -53,7 +88,34 @@ export default function Profile() {
       <h1 className="text-3xl text-center font-semibold my-7">Perfil</h1>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
-        <img className="rounded-full h-28 w-28 object-cover cursor-pointer self-center mt-2 mb-2" src={currentUser.avatar} alt="profile" />
+        <input
+          onChange={(e) => setFile(e.target.files[0])}
+          type="file"
+          ref={fileRef}
+          hidden
+          accept="image/*"
+        />
+
+        <img
+          onClick={() => fileRef.current.click()}
+          className="rounded-full h-28 w-28 object-cover cursor-pointer self-center mt-4 mb-4"
+          src={formData.avatar || currentUser.avatar} alt="profile"
+        />
+        <p className="text-sm self-center">
+          {fileUploadError ? (
+            <div className="flex flex-col text-center">
+              <span className="text-red-600 font-bold">Erro ao carregar a imagem!</span>
+              <span className="text-red-500">!!! O arquivo deve ser menor que 2Mb !!!</span>
+            </div>
+          ) :
+            fileUploadPerc > 0 && fileUploadPerc <100 ? (
+              <span className="text-slate-600">{fileUploadPerc}%</span>
+            ) : fileUploadPerc === 100 ? (
+              <span className="text-green-700 font-bold">Imagem carregada com sucesso!</span>
+          ) : (
+              ""
+          )}
+        </p>
 
         <input
           type="text"
